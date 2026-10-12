@@ -1,0 +1,10 @@
+# Source hashes must be identical across Windows, macOS and Linux checkouts.
+fixtures/*.json text eol=lf
+src/*.py text eol=lf
+scripts/*.py text eol=lf
+guardrails/*.yml text eol=lf
+guardrails/*.co text eol=lf
+
+# Preserve generated JSON bytes: later phases hash answers_50q.json as a source.
+# A terminal CR in preserved Windows output is an EOL, not trailing whitespace.
+artifacts/*.json -text whitespace=trailing-space,space-before-tab,cr-at-eol

@@ -36,13 +36,14 @@ hoặc pip resolve để khẳng định runtime đã chạy.
 
 ### NguyenTranBaoTam-2A202602408
 
-- Đã triển khai: pii_scan, check_input_rail, run_adversarial_suite, measure_p95_latency trong src/phase_c_guard.py; viết blueprint kiến trúc/failure action/phạm vi latency và khung bàn giao CI/Monitoring.
-- Bằng chứng: nhánh tam-guard, commit `feat: implement Tam input guards and latency measurement`, source và blueprint; chưa có artifacts live của phần này.
-- Kiểm tra: `python -m pytest tests/test_phase_c.py -k 'not output' -q` đạt 10 tests; `python -m pytest tests/ -m support -q` đạt 60 tests. Đây là mock/offline, không phải bằng chứng chạy API.
-- Môi trường: Windows, Python 3.11.9; pytest 8.4.2, python-dotenv 1.2.3, jsonschema 4.26.0 có sẵn; chưa phải môi trường test lock. Interpreter chưa có Presidio/NeMo.
-- Điều cần nắm: request thực dừng sớm khi PII bị chặn, phép đo luôn chạy hai tầng; P95 tổng tính từ tổng từng mẫu; expected chỉ dùng đối chiếu.
-- Còn chờ: thử live nhỏ/tinh chỉnh prompt, guard_results.json và số đo thật, review PR Nam, hợp nhất báo cáo. Task 11 thuộc Quốc.
-- Nguồn/AI hỗ trợ: Codex hỗ trợ đọc yêu cầu, triển khai từ scaffold và viết tài liệu; kiểm chứng bằng tests offline có sẵn. Tâm cần tự đọc, giải thích và xác nhận phần đóng góp trước khi nộp.
+- Đã triển khai: pii_scan, check_input_rail, run_adversarial_suite, measure_p95_latency trong src/phase_c_guard.py; viết blueprint kiến trúc/failure action/latency, hỗ trợ tích hợp Phi và Quốc, cài runtime guard và tinh chỉnh self_check_input từ lỗi live.
+- Bằng chứng: code Tâm tại `359c675`; merge `a59a02d` tích hợp Phi `468f478` và Quốc `48e38d1`; scripts/smoke_guard.py, artifacts/guard_results.json, các JSON smoke/regression và doc/reports/tam_guard_validation.md. Tasks 5/6/11 là code Quốc; m1/m4 và Phase A là code Phi.
+- Kiểm tra: Phase C 12 tests offline, report contracts 30 tests; toàn repo 83 passed, 3 failed tại Tasks 7/8 còn TODO. Live C cuối 20/20 attacks, 8/8 clean (FPR=0), 4/4 output; validator strict pass. 20 latency samples, 2 warm-up; input guard P95=857.01ms, vượt budget 500ms, flag false. RAG/output/full guard chưa đo.
+- Môi trường: Windows, Python 3.11.9, Presidio 2.2.364, spaCy 3.8.16 + en_core_web_lg 3.8.0, NeMo 0.10.0, OpenAI 1.109.1, Annoy 1.17.3, FastEmbed 0.9.0, ONNX Runtime 1.31.0. Đã cài MSVC/Windows SDK trên máy và chuyển cache pip/model sang D; pip check/import/model/API đều kiểm chứng thật.
+- Phân tích lỗi: lượt C đầu 18/20 attacks, 7/8 clean, 4/4 output; hai off-topic lọt và câu hỏi password length bị chặn. Chỉnh prompt phạm vi đóng và RULE/VALUE, regression 3/3 rồi chạy lại C đạt 20/20, 8/8, 4/4. Giữ artifacts lượt đầu; không sửa dữ liệu fixtures hoặc hard-code expected/id.
+- Điều cần nắm: PII block dừng trước NeMo trong request; latency đo luôn hai tầng và tính percentile từ tổng từng mẫu. Scope input_layers_sequential không là full guard. Source hashes cần byte ổn định khi Git checkout khác hệ điều hành. Bộ kiểm chứng nhỏ và đã dùng để chỉnh prompt, cần held-out độc lập.
+- Còn chờ nhóm: Tasks 7/8 của Nam để review, artifacts A/B và phần Monitoring/CI tương ứng để hợp nhất blueprint. Task 11 của Quốc đã hợp nhất và kiểm chứng offline/live. Nam dùng lại artifact C khi nguồn giữ nguyên để tránh gọi API trùng.
+- Nguồn/AI hỗ trợ: Codex hỗ trợ đọc yêu cầu, triển khai từ scaffold, tích hợp code nhóm, sửa môi trường, chạy tests/engine/API thật, viết smoke runner, tinh chỉnh prompt và tài liệu. Tâm cần tự đọc, giải thích và xác nhận đóng góp trước khi nộp.
 
 Sao chép mẫu cho mỗi thành viên; tiêu đề họ tên không dấu-MSSV.
 
