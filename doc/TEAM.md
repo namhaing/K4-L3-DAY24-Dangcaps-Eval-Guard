@@ -8,7 +8,7 @@ Trưởng nhóm/người nộp: Nguyễn Hải Nam — 2A202602476
 
 Ngày lab/deadline áp dụng: 23:59 ngày 2026-10-12 — Asia/Ho_Chi_Minh (UTC+07:00)
 
-Commit dùng để chấm: {{Commit SHA}}
+Commit dùng để chấm: `de7f9199be04b992e635990f8cd248828024661d` (de7f919, đủ source, bốn artifacts live và ba báo cáo; commit kế tiếp chỉ ghi SHA này vào TEAM.md)
 
 Mỗi nhóm nộp một repo. Điền đủ thành viên và một mục INDIVIDUAL cho từng người.
 Thêm/xóa rows để khớp nhóm thật; mẫu ba rows không ép nhóm phải có ba người.
