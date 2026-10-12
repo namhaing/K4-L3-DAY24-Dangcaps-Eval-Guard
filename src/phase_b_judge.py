@@ -143,8 +143,16 @@ def cohen_kappa(judge_labels: list[int], human_labels: list[int]) -> float:
         κ = (p_o - p_e) / (1 - p_e) if p_e != 1 else 0
         return κ
     """
-    # TODO: Implement
-    return 0.0
+    if len(judge_labels) != len(human_labels) or not judge_labels:
+        raise ValueError("judge_labels và human_labels phải cùng độ dài và không rỗng.")
+    if any(label not in (0, 1) for label in judge_labels + human_labels):
+        raise ValueError("Nhãn calibration phải là 0 hoặc 1.")
+    n = len(judge_labels)
+    p_o = sum(j == h for j, h in zip(judge_labels, human_labels)) / n
+    p_e = sum((judge_labels.count(c) / n) * (human_labels.count(c) / n) for c in (0, 1))
+    if p_e == 1:  # cả hai chỉ dùng một nhãn duy nhất → κ không xác định
+        return 1.0 if p_o == 1 else 0.0
+    return (p_o - p_e) / (1 - p_e)
 
 
 # ─── Task 8: Bias Report ──────────────────────────────────────────────────────
@@ -172,38 +180,43 @@ def bias_report(judge_results: list[JudgeResult]) -> dict:
           "interpretation": str,
         }
     """
-    # TODO: Implement
-    # total = len(judge_results)
-    # if total == 0:
-    #     return {"total_judged": 0, "position_bias_rate": 0.0, "verbosity_bias": 0.0}
-    #
-    # position_bias_count = sum(1 for r in judge_results if not r.position_consistent)
-    # position_bias_rate  = position_bias_count / total
-    #
-    # a_wins_a_longer = sum(
-    #     1 for r in judge_results
-    #     if r.final_winner == "A" and len(r.answer_a) > len(r.answer_b)
-    # )
-    # b_wins_b_longer = sum(
-    #     1 for r in judge_results
-    #     if r.final_winner == "B" and len(r.answer_b) > len(r.answer_a)
-    # )
-    # decisive = sum(1 for r in judge_results if r.final_winner != "tie")
-    # verbosity_bias = (a_wins_a_longer + b_wins_b_longer) / decisive if decisive > 0 else 0.0
-    #
-    # interpretation = ("Position bias cao — nên dùng swap-and-average."
-    #                   if position_bias_rate > 0.3 else "Position bias thấp — judge ổn định.")
-    # return {
-    #     "total_judged": total, "position_bias_rate": round(position_bias_rate, 3),
-    #     "position_bias_count": position_bias_count,
-    #     "verbosity_bias": round(verbosity_bias, 3),
-    #     "verbosity_details": {"a_wins_a_longer": a_wins_a_longer,
-    #                           "b_wins_b_longer": b_wins_b_longer,
-    #                           "total_decisive": decisive},
-    #     "interpretation": interpretation,
-    # }
-    return {"total_judged": 0, "position_bias_rate": 0.0, "verbosity_bias": 0.0,
-            "position_bias_count": 0, "verbosity_details": {}, "interpretation": ""}
+    total = len(judge_results)
+    if total == 0:
+        return {"total_judged": 0, "position_bias_rate": 0.0, "position_bias_count": 0,
+                "verbosity_bias": 0.0,
+                "verbosity_details": {"a_wins_a_longer": 0, "b_wins_b_longer": 0, "total_decisive": 0},
+                "interpretation": "Không có cặp nào được judge."}
+
+    position_bias_count = sum(1 for r in judge_results if not r.position_consistent)
+    position_bias_rate = position_bias_count / total
+
+    # Verbosity tính trên final_winner (sau swap), không trên winner của một lượt.
+    a_wins_a_longer = sum(1 for r in judge_results
+                          if r.final_winner == "A" and len(r.answer_a) > len(r.answer_b))
+    b_wins_b_longer = sum(1 for r in judge_results
+                          if r.final_winner == "B" and len(r.answer_b) > len(r.answer_a))
+    decisive = sum(1 for r in judge_results if r.final_winner != "tie")
+    verbosity_bias = (a_wins_a_longer + b_wins_b_longer) / decisive if decisive else 0.0
+
+    parts = [f"{position_bias_count}/{total} cặp đổi winner khi hoán vị thứ tự "
+             f"({position_bias_rate:.0%})."]
+    parts.append("Position bias cao — cần swap-and-average và đọc lại các cặp lệch."
+                 if position_bias_rate > 0.3 else "Position bias thấp trên mẫu này.")
+    if decisive:
+        parts.append(f"{a_wins_a_longer + b_wins_b_longer}/{decisive} case decisive có answer dài hơn thắng; "
+                     "đây chỉ là dấu hiệu, cần đọc nội dung trước khi kết luận verbosity bias.")
+    else:
+        parts.append("Không có case decisive nên chưa đánh giá được verbosity bias.")
+    return {
+        "total_judged": total,
+        "position_bias_rate": round(position_bias_rate, 3),
+        "position_bias_count": position_bias_count,
+        "verbosity_bias": round(verbosity_bias, 3),
+        "verbosity_details": {"a_wins_a_longer": a_wins_a_longer,
+                              "b_wins_b_longer": b_wins_b_longer,
+                              "total_decisive": decisive},
+        "interpretation": " ".join(parts),
+    }
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
