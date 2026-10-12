@@ -1,12 +1,12 @@
 # Nhóm thực hiện K4 Track 3A
 
-Tên nhóm: {{Tên nhóm}}
+Tên nhóm: Dangcaps
 
-Repo chung: {{Link repo}}
+Repo chung: https://github.com/namhaing/K4-L3-DAY24-Dangcaps-Eval-Guard
 
-Trưởng nhóm/người nộp: {{Họ tên và MSSV}}
+Trưởng nhóm/người nộp: Nguyễn Hải Nam — 2A202602476
 
-Ngày lab/deadline áp dụng: {{Ngày giờ theo thông báo lớp}} — Asia/Ho_Chi_Minh (UTC+07:00)
+Ngày lab/deadline áp dụng: 23:59 ngày 2026-10-12 — Asia/Ho_Chi_Minh (UTC+07:00)
 
 Commit dùng để chấm: {{Commit SHA}}
 
@@ -17,17 +17,17 @@ Thêm/xóa rows để khớp nhóm thật; mẫu ba rows không ép nhóm phải
 
 | STT | Họ và tên | MSSV | Vai trò / công việc thật | Bằng chứng |
 |---|---|---|---|---|
-| 1 | {{Họ tên}} | {{MSSV}} | {{Phase/file/hàm}} | {{Commit/PR/report}} |
+| 1 | Nguyễn Hải Nam | 2A202602476 | Trưởng nhóm/tích hợp: môi trường full runtime, Qdrant, m2 + m3 (sửa fallback qdrant-client<1.10), bổ sung m5, sinh 50 answers, Task 7 cohen_kappa, Task 8 bias_report, merge nhánh, chạy batch A/B, TEAM.md, checker, nộp bài | Nhánh nam-setup: 00e8ffe (m2/m3), 0e13561 (Tasks 7–8), f938e3b (m5), 8c50995 (merge); artifacts/answers_50q.json |
 | 2 | Đỗ Ngọc Phi | 2A202602531 | Tích hợp m1 + m4 (evaluator_models); Phase A Tasks 1–4; failure_clusters.md; blueprint Monitoring | Nhánh phi-phase-a, PR #2; src/m1_chunking.py, src/m4_eval.py, src/phase_a_ragas.py |
 | 3 | {{Họ tên}} | {{MSSV}} | {{Phase/file/hàm}} | {{Commit/PR/report}} |
 | 4 | Nguyễn Trần Bảo Tâm | 2A202602408 | Tasks 9a/9b/10/12; blueprint kiến trúc và latency | Nhánh tam-guard; src/phase_c_guard.py; doc/reports/blueprint.md |
 
-Người tích hợp/chạy batch/nộp link: {{Họ tên, công việc và bằng chứng}}.
+Người tích hợp/chạy batch/nộp link: Nguyễn Hải Nam — merge phi-phase-a, cuongquoc_2A202602469, tam-guard vào nam-setup (8c50995); chạy setup answers và runner A/B; Phase C dùng lại artifact live của Tâm vì nguồn không đổi.
 
 ## Môi trường và chuẩn bị trước lớp
 
-OS/Python/compiler: {{Phiên bản thực tế}}.
-Virtualenv/dependencies/imports: {{Lệnh và kết quả}}.
+OS/Python/compiler (máy Nam, máy chạy batch A/B): Windows 11 Home 10.0.26200, Python 3.11.9, Visual Studio Build Tools 2022 17.14 (MSVC 14.44.35207, Windows SDK 10.0.26100). Phải Repair VC++ Redistributable 14.38 (mất Package Cache) rồi nâng lên 14.51 mới cài được Build Tools.
+Virtualenv/dependencies/imports: `py -3.11 -m venv .venv`; `pip install -r requirements/requirements.txt -c requirements/constraints-core.txt` (annoy 1.17.3 build bằng MSVC thành công). pip kéo pyarrow 26 cần NumPy 2 → cài `pyarrow==17.0.0`; pyarrow 17 kèm msvcp140.dll 14.28 làm torch 2.14.1 lỗi WinError 1114 → đổi tên DLL đó để dùng bản hệ thống 14.51. Sau đó `pip check`: No broken requirements; import ragas 0.1.22, nemoguardrails 0.10.0, presidio_analyzer, spacy 3.8.16, torch 2.14.1+cpu, numpy 1.26.4 OK; `pytest tests/ -q`: 86 passed.
 Models/Qdrant/50 answers đã chuẩn bị: {{Bằng chứng và giới hạn/fallback}}.
 Nếu cài full NeMo chưa thành công, ghi lỗi thực tế; không dùng unit test pass
 hoặc pip resolve để khẳng định runtime đã chạy.
