@@ -254,31 +254,34 @@ def cluster_analysis(results: list[RagasResult]) -> dict:
           "insight": "..."
         }
     """
-    # TODO: Implement
-    # matrix = {
-    #     metric: {"factual": 0, "multi_hop": 0, "adversarial": 0}
-    #     for metric in DIAGNOSTIC_TREE
-    # }
-    # for r in results:
-    #     matrix[r.worst_metric][r.distribution] += 1
-    #
-    # # Find dominant failure
-    # means = {
-    #     d: sum(r.avg_score for r in results if r.distribution == d) /
-    #        sum(r.distribution == d for r in results)
-    #     for d in ("factual", "multi_hop", "adversarial")
-    #     if any(r.distribution == d for r in results)
-    # }
-    # dominant_dist = min(means, key=means.get)  # lowest quality, NOT largest group
-    # dominant_metric = max(matrix, key=lambda m: sum(matrix[m].values()))
-    # insight = (f"Distribution '{dominant_dist}' có điểm trung bình thấp nhất. "
-    #            f"Metric '{dominant_metric}' là điểm yếu chủ đạo. "
-    #            f"Gợi ý: {DIAGNOSTIC_TREE[dominant_metric][1]}")
-    #
-    # return {"matrix": matrix, "distribution_avg_scores": means,
-    #         "dominant_failure_distribution": dominant_dist,
-    #         "dominant_failure_metric": dominant_metric, "insight": insight}
-    return {}
+    if not results:
+        raise ValueError("cluster_analysis needs at least one RAGAS result.")
+    distributions = ("factual", "multi_hop", "adversarial")
+    matrix = {metric: {d: 0 for d in distributions} for metric in METRICS}
+    for r in results:
+        matrix[r.worst_metric][r.distribution] += 1
+
+    # Nhóm rỗng bị bỏ khỏi phép chia, không gán 0 chất lượng.
+    means = {}
+    for d in distributions:
+        scores = [r.avg_score for r in results if r.distribution == d]
+        if scores:
+            means[d] = sum(scores) / len(scores)
+    dominant_dist = min(means, key=means.get)  # chất lượng thấp nhất, không phải nhóm đông nhất
+    metric_totals = {m: sum(matrix[m].values()) for m in METRICS}
+    dominant_metric = max(metric_totals, key=metric_totals.get)
+
+    means_text = ", ".join(f"{d}={value:.4f}" for d, value in means.items())
+    insight = (f"Nhóm yếu nhất theo avg_score trung bình là '{dominant_dist}' "
+               f"({means[dominant_dist]:.4f}; các nhóm: {means_text}). "
+               f"Worst metric phổ biến nhất là '{dominant_metric}' ở "
+               f"{metric_totals[dominant_metric]}/{len(results)} câu, trong đó "
+               f"{matrix[dominant_metric][dominant_dist]} câu thuộc '{dominant_dist}'. "
+               f"Gợi ý: {DIAGNOSTIC_TREE[dominant_metric][1]}.")
+
+    return {"matrix": matrix, "distribution_avg_scores": means,
+            "dominant_failure_distribution": dominant_dist,
+            "dominant_failure_metric": dominant_metric, "insight": insight}
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
