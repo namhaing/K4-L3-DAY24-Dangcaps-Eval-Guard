@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-10-12T11:49:40.213530+00:00",
+  "scope": "api_connectivity_probe_not_official_phase_c",
+  "model_requested": "gpt-4o-mini",
+  "endpoint": "https://api.openai.com/v1",
+  "key_present": true,
+  "key_has_outer_whitespace": false,
+  "key_has_non_ascii": false,
+  "status": "passed",
+  "model_returned": "gpt-4o-mini-2024-07-18"
+}

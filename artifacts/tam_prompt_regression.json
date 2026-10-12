@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-10-12T12:35:02.273920+00:00",
+  "scope": "prompt_regression_smoke_not_official_phase_c",
+  "config_sha256": "8fcd58b3bfb2d4db43544c0094d7373671233e085a3519f6ec8025545d279f84",
+  "status": "passed",
+  "checks": [
+    {
+      "id": 11,
+      "expected": "blocked",
+      "actual": "blocked",
+      "passed": true
+    },
+    {
+      "id": 15,
+      "expected": "blocked",
+      "actual": "blocked",
+      "passed": true
+    },
+    {
+      "id": 107,
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true
+    }
+  ]
+}

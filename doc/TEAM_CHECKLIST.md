@@ -43,7 +43,7 @@ Thiếu `answers_50q.json` thì Phase A bị 0 điểm, nên phần này có tr�
 - [ ] Mỗi người clone, tạo nhánh riêng: `nam-setup`, `phi-phase-a`, `quoc-judge`, `tam-guard`.
 - [ ] Quy ước: commit bằng tài khoản GitHub của chính mình, mở PR về `main`, người review approve rồi Nam merge.
 - [ ] Không commit `.env`, `.venv/`, cache model, API key. Kiểm tra `git status` trước mỗi commit.
-- [ ] Thống nhất **chỉ Nam chạy batch live chính thức** (tránh trả phí 2 lần và lệch `source_sha256`).
+- [x] Tâm đã hỗ trợ chạy batch C chính thức; Nam chạy A/B và dùng lại artifact C khi nguồn giữ nguyên (tránh trả phí trùng và lệch source_sha256). Xem doc/reports/tam_guard_validation.md.
 - [ ] Mỗi người tạo môi trường **test offline** (không cần compiler/NeMo/model) theo hướng dẫn Quốc:
 
 ```powershell
@@ -118,7 +118,7 @@ py -3.11 -m venv .venv
 - [ ] `python -m pytest tests/ -q` → toàn bộ pass (mỗi student test fail = −3đ).
 - [ ] `python scripts/run_experiments.py --phase a --live`
 - [ ] `python scripts/run_experiments.py --phase b --live`
-- [ ] `python scripts/run_experiments.py --phase c --live --latency-samples 20`
+- [x] `python scripts/run_experiments.py --phase c --live --latency-samples 20` — Tâm hỗ trợ chạy, 20/20 attacks, 8/8 clean, 4/4 output; không chạy lại nếu nguồn giữ nguyên.
 - [ ] **Không** chạy thêm `pytest -m integration --run-live` sau runner (tốn phí lặp).
 - [ ] Nếu đổi answers/fixtures sau khi chạy → chạy lại phase liên quan (checker so SHA-256).
 - [ ] Commit 3 JSON, báo Phi/Quốc/Tâm kiểm tra và điền báo cáo.
@@ -145,30 +145,30 @@ git rev-parse HEAD
 
 ### 3.1 Tích hợp m1 + m4 (trước lớp)
 
-- [ ] Chép `m1_chunking.py`, `m4_eval.py` vào `src/`.
-- [ ] m1 `load_documents()` → list dict `text`, `metadata`, đọc từ `config.DATA_DIR`.
-- [ ] m1 `chunk_hierarchical(text, metadata=...)` → `(parents, children)`; child có `.text`, `.metadata`, `.parent_id`.
-- [ ] m4 `evaluate_ragas(questions, answers, contexts, ground_truths)` → dict có `per_question` (object có 4 metric, float Python hữu hạn [0,1]).
-- [ ] **Sửa m4 trả thêm `metadata.evaluator_models`** = list model IDs LLM + embedding thực sự dùng trong lượt RAGAS. Không lấy `JUDGE_MODEL` thay.
-- [ ] m4 trả dict → `SimpleNamespace(**record)`; scalar NumPy → `float(...)`; không thay NaN bằng điểm giả.
-- [ ] Không xoá tài liệu policy bản cũ trong `data/` (bẫy có chủ ý).
+- [x] Chép `m1_chunking.py`, `m4_eval.py` vào `src/`. (68f9c69, 4d666f4)
+- [x] m1 `load_documents()` → list dict `text`, `metadata`, đọc từ `config.DATA_DIR`.
+- [x] m1 `chunk_hierarchical(text, metadata=...)` → `(parents, children)`; child có `.text`, `.metadata`, `.parent_id`.
+- [x] m4 `evaluate_ragas(questions, answers, contexts, ground_truths)` → dict có `per_question` (object có 4 metric, float Python hữu hạn [0,1]).
+- [x] **Sửa m4 trả thêm `metadata.evaluator_models`** = list model IDs LLM + embedding thực sự dùng trong lượt RAGAS. Không lấy `JUDGE_MODEL` thay.
+- [x] m4 trả dict → `SimpleNamespace(**record)`; scalar NumPy → `float(...)`; không thay NaN bằng điểm giả.
+- [x] Không xoá tài liệu policy bản cũ trong `data/` (bẫy có chủ ý).
 
 ### 3.2 Tasks 1–4 trong `src/phase_a_ragas.py` (30đ) — xoá hết `# TODO`
 
-- [ ] **Task 1 `group_by_distribution`** (5đ): 3 key `factual`, `multi_hop`, `adversarial`; 20/20/10.
-- [ ] **Task 2 `run_ragas_50q`** (10đ):
-  - [ ] `from src.m4_eval import evaluate_ragas` **bên trong hàm** (test thay `sys.modules["src.m4_eval"]`).
-  - [ ] Gọi `evaluate_ragas` đúng 1 lần với 4 list theo đúng thứ tự answers.
-  - [ ] Kiểm `len(per_question) == len(answers)` trước khi ghép.
-  - [ ] Bọc `float(...)`; NaN/ngoài [0,1] → raise.
-  - [ ] Trả `RagasEvaluation(results, raw["metadata"]["evaluator_models"])`; thiếu metadata → raise.
-- [ ] **Task 3 `bottom_10`** (7đ): sắp tăng theo `avg_score`, tối đa 10; row có `rank`, `question_id`, `distribution`, `question`, `avg_score` (≥4 chữ số thập phân; checker cho sai số 1e-4), `worst_metric`, `diagnosis`, `suggested_fix` không rỗng. Nên viết diagnosis cụ thể hơn `DIAGNOSTIC_TREE` (ví dụ nêu bẫy phiên bản với câu adversarial).
-- [ ] **Task 4 `cluster_analysis`** (8đ):
-  - [ ] `matrix[worst_metric][distribution]` đếm **mọi câu**.
-  - [ ] `distribution_avg_scores`, bỏ nhóm rỗng khỏi phép chia.
-  - [ ] `dominant_failure_distribution` = nhóm có **mean thấp nhất** (không phải nhóm đông nhất).
-  - [ ] `dominant_failure_metric` = metric có tổng hàng lớn nhất; `insight` không rỗng.
-- [ ] `python -m pytest tests/test_phase_a.py -q` → 6 test pass; PR → Nam review.
+- [x] **Task 1 `group_by_distribution`** (5đ): 3 key `factual`, `multi_hop`, `adversarial`; 20/20/10. (2f0c727)
+- [x] **Task 2 `run_ragas_50q`** (10đ): (bd7d626)
+  - [x] `from src.m4_eval import evaluate_ragas` **bên trong hàm** (test thay `sys.modules["src.m4_eval"]`).
+  - [x] Gọi `evaluate_ragas` đúng 1 lần với 4 list theo đúng thứ tự answers.
+  - [x] Kiểm `len(per_question) == len(answers)` trước khi ghép.
+  - [x] Bọc `float(...)`; NaN/ngoài [0,1] → raise.
+  - [x] Trả `RagasEvaluation(results, raw["metadata"]["evaluator_models"])`; thiếu metadata → raise.
+- [x] **Task 3 `bottom_10`** (7đ): (ee5b5fa) sắp tăng theo `avg_score`, tối đa 10; row có `rank`, `question_id`, `distribution`, `question`, `avg_score` (≥4 chữ số thập phân; checker cho sai số 1e-4), `worst_metric`, `diagnosis`, `suggested_fix` không rỗng. Nên viết diagnosis cụ thể hơn `DIAGNOSTIC_TREE` (ví dụ nêu bẫy phiên bản với câu adversarial).
+- [x] **Task 4 `cluster_analysis`** (8đ): (8f35eb2)
+  - [x] `matrix[worst_metric][distribution]` đếm **mọi câu**.
+  - [x] `distribution_avg_scores`, bỏ nhóm rỗng khỏi phép chia.
+  - [x] `dominant_failure_distribution` = nhóm có **mean thấp nhất** (không phải nhóm đông nhất).
+  - [x] `dominant_failure_metric` = metric có tổng hàng lớn nhất; `insight` không rỗng.
+- [x] `python -m pytest tests/test_phase_a.py -q` → 6 test pass; PR → Nam review (nhánh `phi-phase-a`, đang chờ Nam review).
 
 ### 3.3 `doc/reports/failure_clusters.md` (sau khi có `ragas_50q.json`)
 
@@ -243,48 +243,48 @@ git rev-parse HEAD
 
 ### 5.1 Chuẩn bị (trước lớp)
 
-- [ ] Có môi trường chạy được Presidio + NeMo thật: tự cài theo mục 2.1 hoặc dùng chung máy Nam.
-- [ ] Đọc `guardrails/config.yml`, `guardrails/rails.co`, `fixtures/adversarial_set_20.json`, `clean_set_8.json`, `output_set_4.json`.
+- [x] Có môi trường Presidio + NeMo thật trên máy Tâm; MSVC/SDK/Annoy/FastEmbed đã cài, pip check và batch C live đã pass. Xem tam_guard_validation.md.
+- [x] Đọc `guardrails/config.yml`, `guardrails/rails.co`, `fixtures/adversarial_set_20.json`, `clean_set_8.json`, `output_set_4.json`.
 
 ### 5.2 Hàm trong `src/phase_c_guard.py` (30đ)
 
-- [ ] **Task 9a `pii_scan(text, analyzer, anonymizer)`** (10đ):
-  - [ ] `analyzer.analyze(text=..., language=PRESIDIO_LANGUAGE)` **chỉ 2 keyword này** (mock test không nhận `entities=`).
-  - [ ] Trả `has_pii`, `entities` (`type`, `text`, `score`, `start`, `end`), `anonymized` (qua `anonymizer.anonymize(text=..., analyzer_results=...)`).
-  - [ ] Không có PII → đúng `{"has_pii": False, "entities": [], "anonymized": text}`.
-  - [ ] ⚠️ **Rủi ro chặn nhầm**: recognizer mặc định (PERSON, LOCATION, DATE_TIME, NRP…) với spaCy tiếng Anh có thể gắn nhầm "VPN", "MFA", "Senior", "v2024"… → **lọc kết quả sau analyze** theo allowlist (`VN_CCCD`, `VN_PHONE`, `EMAIL_ADDRESS`, `PHONE_NUMBER`…) rồi mới anonymize.
-- [ ] **Task 9b `check_input_rail(text, rails)`** async (5đ):
-  - [ ] `await rails.generate_async(messages=[{"role": "user", ...}], options={"rails": ["input"], "log": {"activated_rails": True}})`.
-  - [ ] Block theo `rail.stop` trong `activated_rails`, **không** dò "xin lỗi/không thể" (clean 102 chứa đúng cụm này).
-  - [ ] Trả `allowed`, `blocked_reason`, `response = result.response[0]["content"]`.
-- [ ] **Task 10 `run_adversarial_suite(items, rails, analyzer, anonymizer)`** (10đ):
-  - [ ] Hàm đồng bộ, `asyncio.run(...)` **một lần** cho cả batch.
-  - [ ] Gọi `pii_scan(text, analyzer, anonymizer)` và `check_input_rail(text, rails)` **positional**, qua tên global của module (test monkeypatch bằng `lambda text, *args`).
-  - [ ] PII → `blocked_by="presidio"` và **không gọi NeMo** (test đếm đúng 24 lần await).
-  - [ ] Row: `id`, `category`, `input` (giữ nguyên), `expected`, `actual`, `blocked_by` (`presidio`/`nemo_input`/`None`), `passed`. Không dùng `expected` để quyết định.
-- [ ] **Task 12 `measure_p95_latency(...)`** (5đ):
-  - [ ] `time.perf_counter()` qua module `time` (test patch `phase.time.perf_counter`).
-  - [ ] Một event loop; 2 warm-up thật (Presidio + NeMo) không tính; `n_runs` mẫu cycle input; **luôn đo cả 2 tầng**.
-  - [ ] Sample: `presidio_ms`, `nemo_input_ms`, `input_guard_ms` = tổng; trả `summarize_latency(samples, warmup_runs=2)`.
-- [ ] `python -m pytest tests/test_phase_c.py -q` pass (trừ phần output do Quốc); PR → Quốc review.
+- [x] **Task 9a `pii_scan(text, analyzer, anonymizer)`** (10đ):
+  - [x] `analyzer.analyze(text=..., language=PRESIDIO_LANGUAGE)` **chỉ 2 keyword này** (mock test không nhận `entities=`).
+  - [x] Trả `has_pii`, `entities` (`type`, `text`, `score`, `start`, `end`), `anonymized` (qua `anonymizer.anonymize(text=..., analyzer_results=...)`).
+  - [x] Không có PII → đúng `{"has_pii": False, "entities": [], "anonymized": text}`.
+  - [x] ⚠️ **Rủi ro chặn nhầm**: recognizer mặc định (PERSON, LOCATION, DATE_TIME, NRP…) với spaCy tiếng Anh có thể gắn nhầm "VPN", "MFA", "Senior", "v2024"… → **lọc kết quả sau analyze** theo allowlist (`VN_CCCD`, `VN_PHONE`, `EMAIL_ADDRESS`, `PHONE_NUMBER`…) rồi mới anonymize.
+- [x] **Task 9b `check_input_rail(text, rails)`** async (5đ):
+  - [x] `await rails.generate_async(messages=[{"role": "user", ...}], options={"rails": ["input"], "log": {"activated_rails": True}})`.
+  - [x] Block theo `rail.stop` trong `activated_rails`, **không** dò "xin lỗi/không thể" (clean 102 chứa đúng cụm này).
+  - [x] Trả `allowed`, `blocked_reason`, `response = result.response[0]["content"]`.
+- [x] **Task 10 `run_adversarial_suite(items, rails, analyzer, anonymizer)`** (10đ):
+  - [x] Hàm đồng bộ, `asyncio.run(...)` **một lần** cho cả batch.
+  - [x] Gọi `pii_scan(text, analyzer, anonymizer)` và `check_input_rail(text, rails)` **positional**, qua tên global của module (test monkeypatch bằng `lambda text, *args`).
+  - [x] PII → `blocked_by="presidio"` và **không gọi NeMo** (test đếm đúng 24 lần await).
+  - [x] Row: `id`, `category`, `input` (giữ nguyên), `expected`, `actual`, `blocked_by` (`presidio`/`nemo_input`/`None`), `passed`. Không dùng `expected` để quyết định.
+- [x] **Task 12 `measure_p95_latency(...)`** (5đ):
+  - [x] `time.perf_counter()` qua module `time` (test patch `phase.time.perf_counter`).
+  - [x] Một event loop; 2 warm-up thật (Presidio + NeMo) không tính; `n_runs` mẫu cycle input; **luôn đo cả 2 tầng**.
+  - [x] Sample: `presidio_ms`, `nemo_input_ms`, `input_guard_ms` = tổng; trả `summarize_latency(samples, warmup_runs=2)`.
+- [ ] `python -m pytest tests/test_phase_c.py -q` đạt 12 tests sau merge `a59a02d`; còn chờ Quốc review PR.
 
 ### 5.3 Thử live nhỏ + tinh chỉnh (trước khi Nam chạy batch C)
 
-- [ ] `pii_scan` thật trên 8 câu clean → không câu nào `has_pii`.
-- [ ] Input rail trên attack khó (id 5, 7, 16–20) và cả 8 clean.
-- [ ] Clean bị chặn / attack lọt → chỉnh prompt `self_check_input` / `self_check_output` trong `guardrails/config.yml`; không sửa fixtures, không hard-code theo id/expected. Ghi lại thay đổi cho blueprint.
-- [ ] Mục tiêu: attacks ≥ 15/20 (bắt buộc), **≥ 18/20 + clean 8/8 = bonus C (+3đ)**.
+- [x] `pii_scan` thật trên 8 câu clean → không câu nào `has_pii`; 4/4 ca PII phát hiện và anonymize. Bằng chứng: `artifacts/tam_presidio_smoke.json`.
+- [x] Input rail trên attack khó (id 5, 7, 16–20) và cả 8 clean; batch C cuối đạt 20/20 attacks, 8/8 clean, artifacts/guard_results.json.
+- [x] Chỉnh self_check_input từ lỗi live off-topic/password rules; regression 3/3 rồi full C pass. Không sửa fixtures/hard-code id/expected; đã ghi hai lượt và thay đổi trong blueprint.
+- [x] Attacks 20/20, clean 8/8, output 4/4; đạt điều kiện bắt buộc và bonus C (+3đ). Validator strict pass.
 
 ### 5.4 `doc/reports/blueprint.md` — tạo khung, viết Kiến trúc + Latency, hợp nhất
 
-- [ ] Tạo khung sớm để Phi (Monitoring) và Quốc (CI gates) điền song song.
+- [x] Tạo khung sớm để Phi (Monitoring) và Quốc (CI gates) điền song song — commit `359c675`.
 - [ ] Header: tên nhóm, người phụ trách (Tâm, Phi, Quốc + MSSV), `created_at`, guard models, models generation/evaluator/judge.
-- [ ] **Kiến trúc + failure action**: Input → Presidio → NeMo input → RAG → NeMo output → response; hành động khi chặn, log/redact, nơi giữ secrets, fallback.
-- [ ] **Latency**: n_samples, warmup_runs, percentile_method; bảng P50/P95/P99 Presidio, NeMo input, input guard sequential (số thật).
-  - [ ] RAG / NeMo output / full guard ghi **"chưa đo"** + kế hoạch đo; không suy từ `input_guard_ms`.
-  - [ ] `latency_budget_ok` + giá trị thật so 500ms; vượt thì ghi đúng và nêu bottleneck.
-- [ ] Hợp nhất 3 mục, rà không còn placeholder / ô trống (blueprint giữ mẫu = −10đ).
-- [ ] Review PR của Nam. Viết INDIVIDUAL của mình.
+- [x] **Kiến trúc + failure action**: Input → Presidio → NeMo input → RAG → NeMo output → response; hành động khi chặn, log/redact, nơi giữ secrets, fallback.
+- [x] **Latency**: n_samples=20, warmup_runs=2, percentile_method=linear; bảng P50/P95/P99 thật đã điền từ guard_results.json.
+  - [x] RAG / NeMo output / full guard ghi **"chưa đo"** + kế hoạch đo; không suy từ `input_guard_ms`.
+  - [x] latency_budget_ok=false; input guard P95=857,01ms >500ms; bottleneck NeMo đã ghi đúng.
+- [x] Blueprint có kiến trúc, CI/monitoring đề xuất và số C thật, không placeholder/ô trống; Phi/Quốc review và bổ sung A/B khi có artifacts.
+- [ ] Review Nam khi Tasks 7/8 được push; INDIVIDUAL Tâm đã cập nhật code/tests/live C và giới hạn.
 
 ---
 
