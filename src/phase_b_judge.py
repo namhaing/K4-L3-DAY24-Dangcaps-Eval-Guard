@@ -39,37 +39,50 @@ def pairwise_judge(question: str, answer_a: str, answer_b: str, reference: str =
     Returns:
         {"winner": "A"|"B"|"tie", "reasoning": str, "scores": {"A": float, "B": float}}
     """
-    # TODO: Implement
-    # PROMPT_TEMPLATE = '''Bạn là một expert đánh giá chất lượng câu trả lời RAG.
-    #
-    # Câu hỏi: {question}
-    # Chính sách/đáp án tham chiếu: {reference}
-    #
-    # Answer A:
-    # {answer_a}
-    #
-    # Answer B:
-    # {answer_b}
-    #
-    # Đánh giá dựa trên 3 tiêu chí: độ chính xác, đầy đủ, súc tích.
-    # Trả lời JSON (chỉ JSON, không text khác):
-    # {{"winner": "A" hoặc "B" hoặc "tie", "reasoning": "giải thích ngắn gọn", "scores": {{"A": 0.0-1.0, "B": 0.0-1.0}}}}
-    # '''
-    #
-    # from openai import OpenAI
-    # client = OpenAI()
-    # resp = client.chat.completions.create(
-    #     model=JUDGE_MODEL,
-    #     messages=[
-    #         {"role": "system", "content": "Bạn là expert đánh giá RAG. Chỉ trả lời JSON."},
-    #         {"role": "user",   "content": PROMPT_TEMPLATE.format(
-    #             question=question, answer_a=answer_a, answer_b=answer_b,
-    #             reference=reference)},
-    #     ],
-    #     response_format={"type": "json_object"},
-    # )
-    # return json.loads(resp.choices[0].message.content)
-    return {"winner": "tie", "reasoning": "", "scores": {"A": 0.0, "B": 0.0}}
+    prompt = f"""Bạn là expert đánh giá chất lượng câu trả lời RAG về chính sách công ty.
+
+Câu hỏi: {question}
+Chính sách/đáp án tham chiếu: {reference}
+
+Answer A:
+{answer_a}
+
+Answer B:
+{answer_b}
+
+Đánh giá theo 3 tiêu chí:
+- Độ chính xác: khớp đáp án tham chiếu, đúng phiên bản chính sách và đúng phủ định.
+- Độ đầy đủ: trả lời đủ câu hỏi.
+- Súc tích: không thừa/thiếu thông tin. Độ dài KHÔNG phải lý do để thắng.
+Nếu hai answer tương đương, chọn "tie".
+Trả lời JSON (chỉ JSON):
+{{"winner": "A" hoặc "B" hoặc "tie", "reasoning": "giải thích ngắn gọn", "scores": {{"A": 0.0-1.0, "B": 0.0-1.0}}}}"""
+
+    from openai import OpenAI
+    client = OpenAI()
+    resp = client.chat.completions.create(
+        model=JUDGE_MODEL,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": "Bạn là expert đánh giá RAG. Chỉ trả lời JSON."},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    raw = json.loads(resp.choices[0].message.content)
+    winner = raw.get("winner")
+    scores = raw.get("scores")
+    if winner not in ("A", "B", "tie"):
+        raise ValueError(f"Judge winner không hợp lệ: {winner!r}")
+    if not isinstance(scores, dict):
+        raise ValueError("Judge thiếu scores")
+    out = {}
+    for k in ("A", "B"):
+        v = float(scores[k])
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(f"Judge score {k} ngoài [0,1]: {v}")
+        out[k] = v
+    return {"winner": winner, "reasoning": str(raw.get("reasoning", "")), "scores": out}
 
 
 # ─── Task 6: Swap-and-Average ─────────────────────────────────────────────────
@@ -87,35 +100,20 @@ def swap_and_average(question: str, answer_a: str, answer_b: str, reference: str
         Final:   nếu winner_1 == winner_2 → final = winner_1
                  nếu khác nhau → final = "tie"
     """
-    # TODO: Implement
-    # pass1 = pairwise_judge(question, answer_a, answer_b, reference=reference)
-    # pass2_raw = pairwise_judge(question, answer_b, answer_a, reference=reference)  # SWAP!
-    #
-    # # Convert pass2 back to original A/B space
-    # swap_map = {"A": "B", "B": "A", "tie": "tie"}
-    # winner_pass2 = swap_map[pass2_raw["winner"]]
-    #
-    # # Average: consensus only if both agree
-    # if pass1["winner"] == winner_pass2:
-    #     final = pass1["winner"]
-    # else:
-    #     final = "tie"  # disagreement = inconclusive
-    #
-    # position_consistent = (pass1["winner"] == winner_pass2)
-    #
-    # return JudgeResult(
-    #     question=question, answer_a=answer_a, answer_b=answer_b,
-    #     winner_pass1=pass1["winner"], winner_pass2=winner_pass2,
-    #     final_winner=final,
-    #     reasoning_pass1=pass1["reasoning"], reasoning_pass2=pass2_raw["reasoning"],
-    #     position_consistent=position_consistent,
-    #     scores_pass1=pass1["scores"],
-    #     scores_pass2={"A": pass2_raw["scores"]["B"], "B": pass2_raw["scores"]["A"]},
-    # )
+    pass1 = pairwise_judge(question, answer_a, answer_b, reference=reference)
+    pass2_raw = pairwise_judge(question, answer_b, answer_a, reference=reference)  # SWAP
+
+    # Pass 2 chạy trong không gian B/A nên đổi winner/scores về không gian gốc.
+    winner_pass2 = {"A": "B", "B": "A", "tie": "tie"}[pass2_raw["winner"]]
+    consistent = pass1["winner"] == winner_pass2
     return JudgeResult(
         question=question, answer_a=answer_a, answer_b=answer_b,
-        winner_pass1="tie", winner_pass2="tie", final_winner="tie",
-        reasoning_pass1="", reasoning_pass2="", position_consistent=True,
+        winner_pass1=pass1["winner"], winner_pass2=winner_pass2,
+        final_winner=pass1["winner"] if consistent else "tie",
+        reasoning_pass1=pass1["reasoning"], reasoning_pass2=pass2_raw["reasoning"],
+        position_consistent=consistent,
+        scores_pass1=pass1["scores"],
+        scores_pass2={"A": pass2_raw["scores"]["B"], "B": pass2_raw["scores"]["A"]},
     )
 
 
