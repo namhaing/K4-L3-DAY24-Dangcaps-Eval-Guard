@@ -143,30 +143,30 @@ git rev-parse HEAD
 
 ### 3.1 Tích hợp m1 + m4 (trước lớp)
 
-- [ ] Chép `m1_chunking.py`, `m4_eval.py` vào `src/`.
-- [ ] m1 `load_documents()` → list dict `text`, `metadata`, đọc từ `config.DATA_DIR`.
-- [ ] m1 `chunk_hierarchical(text, metadata=...)` → `(parents, children)`; child có `.text`, `.metadata`, `.parent_id`.
-- [ ] m4 `evaluate_ragas(questions, answers, contexts, ground_truths)` → dict có `per_question` (object có 4 metric, float Python hữu hạn [0,1]).
-- [ ] **Sửa m4 trả thêm `metadata.evaluator_models`** = list model IDs LLM + embedding thực sự dùng trong lượt RAGAS. Không lấy `JUDGE_MODEL` thay.
-- [ ] m4 trả dict → `SimpleNamespace(**record)`; scalar NumPy → `float(...)`; không thay NaN bằng điểm giả.
-- [ ] Không xoá tài liệu policy bản cũ trong `data/` (bẫy có chủ ý).
+- [x] Chép `m1_chunking.py`, `m4_eval.py` vào `src/`. (68f9c69, 4d666f4)
+- [x] m1 `load_documents()` → list dict `text`, `metadata`, đọc từ `config.DATA_DIR`.
+- [x] m1 `chunk_hierarchical(text, metadata=...)` → `(parents, children)`; child có `.text`, `.metadata`, `.parent_id`.
+- [x] m4 `evaluate_ragas(questions, answers, contexts, ground_truths)` → dict có `per_question` (object có 4 metric, float Python hữu hạn [0,1]).
+- [x] **Sửa m4 trả thêm `metadata.evaluator_models`** = list model IDs LLM + embedding thực sự dùng trong lượt RAGAS. Không lấy `JUDGE_MODEL` thay.
+- [x] m4 trả dict → `SimpleNamespace(**record)`; scalar NumPy → `float(...)`; không thay NaN bằng điểm giả.
+- [x] Không xoá tài liệu policy bản cũ trong `data/` (bẫy có chủ ý).
 
 ### 3.2 Tasks 1–4 trong `src/phase_a_ragas.py` (30đ) — xoá hết `# TODO`
 
-- [ ] **Task 1 `group_by_distribution`** (5đ): 3 key `factual`, `multi_hop`, `adversarial`; 20/20/10.
-- [ ] **Task 2 `run_ragas_50q`** (10đ):
-  - [ ] `from src.m4_eval import evaluate_ragas` **bên trong hàm** (test thay `sys.modules["src.m4_eval"]`).
-  - [ ] Gọi `evaluate_ragas` đúng 1 lần với 4 list theo đúng thứ tự answers.
-  - [ ] Kiểm `len(per_question) == len(answers)` trước khi ghép.
-  - [ ] Bọc `float(...)`; NaN/ngoài [0,1] → raise.
-  - [ ] Trả `RagasEvaluation(results, raw["metadata"]["evaluator_models"])`; thiếu metadata → raise.
-- [ ] **Task 3 `bottom_10`** (7đ): sắp tăng theo `avg_score`, tối đa 10; row có `rank`, `question_id`, `distribution`, `question`, `avg_score` (≥4 chữ số thập phân; checker cho sai số 1e-4), `worst_metric`, `diagnosis`, `suggested_fix` không rỗng. Nên viết diagnosis cụ thể hơn `DIAGNOSTIC_TREE` (ví dụ nêu bẫy phiên bản với câu adversarial).
-- [ ] **Task 4 `cluster_analysis`** (8đ):
-  - [ ] `matrix[worst_metric][distribution]` đếm **mọi câu**.
-  - [ ] `distribution_avg_scores`, bỏ nhóm rỗng khỏi phép chia.
-  - [ ] `dominant_failure_distribution` = nhóm có **mean thấp nhất** (không phải nhóm đông nhất).
-  - [ ] `dominant_failure_metric` = metric có tổng hàng lớn nhất; `insight` không rỗng.
-- [ ] `python -m pytest tests/test_phase_a.py -q` → 6 test pass; PR → Nam review.
+- [x] **Task 1 `group_by_distribution`** (5đ): 3 key `factual`, `multi_hop`, `adversarial`; 20/20/10. (2f0c727)
+- [x] **Task 2 `run_ragas_50q`** (10đ): (bd7d626)
+  - [x] `from src.m4_eval import evaluate_ragas` **bên trong hàm** (test thay `sys.modules["src.m4_eval"]`).
+  - [x] Gọi `evaluate_ragas` đúng 1 lần với 4 list theo đúng thứ tự answers.
+  - [x] Kiểm `len(per_question) == len(answers)` trước khi ghép.
+  - [x] Bọc `float(...)`; NaN/ngoài [0,1] → raise.
+  - [x] Trả `RagasEvaluation(results, raw["metadata"]["evaluator_models"])`; thiếu metadata → raise.
+- [x] **Task 3 `bottom_10`** (7đ): (ee5b5fa) sắp tăng theo `avg_score`, tối đa 10; row có `rank`, `question_id`, `distribution`, `question`, `avg_score` (≥4 chữ số thập phân; checker cho sai số 1e-4), `worst_metric`, `diagnosis`, `suggested_fix` không rỗng. Nên viết diagnosis cụ thể hơn `DIAGNOSTIC_TREE` (ví dụ nêu bẫy phiên bản với câu adversarial).
+- [x] **Task 4 `cluster_analysis`** (8đ): (8f35eb2)
+  - [x] `matrix[worst_metric][distribution]` đếm **mọi câu**.
+  - [x] `distribution_avg_scores`, bỏ nhóm rỗng khỏi phép chia.
+  - [x] `dominant_failure_distribution` = nhóm có **mean thấp nhất** (không phải nhóm đông nhất).
+  - [x] `dominant_failure_metric` = metric có tổng hàng lớn nhất; `insight` không rỗng.
+- [x] `python -m pytest tests/test_phase_a.py -q` → 6 test pass; PR → Nam review (nhánh `phi-phase-a`, đang chờ Nam review).
 
 ### 3.3 `doc/reports/failure_clusters.md` (sau khi có `ragas_50q.json`)
 
