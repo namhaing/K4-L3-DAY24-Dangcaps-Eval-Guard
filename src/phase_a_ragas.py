@@ -3,6 +3,7 @@ from __future__ import annotations
 """Phase A: RAGAS Production Evaluation — 50q, 3 distributions, cluster analysis."""
 
 import json
+import math
 import os
 import sys
 from dataclasses import asdict, dataclass
@@ -12,6 +13,7 @@ from config import TEST_SET_PATH, ANSWERS_PATH, ARTIFACTS_DIR
 from src.experiment_support import write_json
 
 Distribution = str  # "factual" | "multi_hop" | "adversarial"
+METRICS = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
 
 DIAGNOSTIC_TREE = {
     "faithfulness":      ("LLM hallucinating", "Tighten system prompt, lower temperature"),
@@ -136,32 +138,44 @@ def run_ragas_50q(answers: list[dict]) -> RagasEvaluation:
         4. Return RagasEvaluation(results, raw["metadata"]["evaluator_models"])
            m4 must report its actual LLM/embedding models; never guess JUDGE_MODEL.
     """
-    # TODO: Implement
-    # try:
-    #     from src.m4_eval import evaluate_ragas
-    # except ImportError:
-    #     print("⚠️  Không tìm thấy src/m4_eval.py — đã copy từ Day 18 chưa?")
-    #     raise ValueError("Missing m4 evaluator; cannot declare its actual models")
-    #
-    # questions     = [a["question"]    for a in answers]
-    # ans_texts     = [a["answer"]      for a in answers]
-    # contexts      = [a["contexts"]    for a in answers]
-    # ground_truths = [a["ground_truth"] for a in answers]
-    #
-    # raw = evaluate_ragas(questions, ans_texts, contexts, ground_truths)
-    # per_q = raw.get("per_question", [])
-    #
-    # results = []
-    # for a, pq in zip(answers, per_q):
-    #     results.append(RagasResult(
-    #         question_id=a["id"], distribution=a["distribution"],
-    #         question=a["question"], answer=a["answer"],
-    #         contexts=a["contexts"], ground_truth=a["ground_truth"],
-    #         faithfulness=float(pq.faithfulness), answer_relevancy=float(pq.answer_relevancy),
-    #         context_precision=float(pq.context_precision), context_recall=float(pq.context_recall),
-    #     ))
-    # return RagasEvaluation(results, raw["metadata"]["evaluator_models"])
-    return RagasEvaluation([], [])
+    # Import trong hàm để dùng đúng m4 hiện tại (tests thay sys.modules["src.m4_eval"]).
+    try:
+        from src.m4_eval import evaluate_ragas
+    except ImportError as error:
+        raise ValueError("Missing src/m4_eval.py; cannot run RAGAS or declare evaluator models") from error
+
+    raw = evaluate_ragas(
+        [a["question"] for a in answers],
+        [a["answer"] for a in answers],
+        [a["contexts"] for a in answers],
+        [a["ground_truth"] for a in answers],
+    )
+    per_question = raw.get("per_question", [])
+    if len(per_question) != len(answers):
+        raise ValueError(f"m4 returned {len(per_question)} rows for {len(answers)} answers; "
+                         "RAGAS did not evaluate every question.")
+    evaluator_models = raw.get("metadata", {}).get("evaluator_models")
+    if not evaluator_models:
+        raise ValueError("m4 must report metadata.evaluator_models; never substitute JUDGE_MODEL.")
+
+    results = []
+    for a, pq in zip(answers, per_question):
+        reported_question = getattr(pq, "question", None)
+        if reported_question is not None and reported_question != a["question"]:
+            raise ValueError(f"Question {a['id']}: m4 rows are not aligned with answers.")
+        scores = {}
+        for metric in METRICS:
+            value = float(getattr(pq, metric))
+            if not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(f"Question {a['id']}: {metric}={value} is not a finite score in [0, 1].")
+            scores[metric] = value
+        results.append(RagasResult(
+            question_id=a["id"], distribution=a["distribution"],
+            question=a["question"], answer=a["answer"],
+            contexts=a["contexts"], ground_truth=a["ground_truth"],
+            **scores,
+        ))
+    return RagasEvaluation(results, list(evaluator_models))
 
 
 def bottom_10(results: list[RagasResult]) -> list[dict]:
