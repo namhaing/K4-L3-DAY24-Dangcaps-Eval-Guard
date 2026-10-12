@@ -19,7 +19,7 @@ Thêm/xóa rows để khớp nhóm thật; mẫu ba rows không ép nhóm phải
 |---|---|---|---|---|
 | 1 | Nguyễn Hải Nam | 2A202602476 | Trưởng nhóm/tích hợp: môi trường full runtime, Qdrant, m2 + m3 (sửa fallback qdrant-client<1.10), bổ sung m5, sinh 50 answers, Task 7 cohen_kappa, Task 8 bias_report, merge nhánh, chạy batch A/B, TEAM.md, checker, nộp bài | Nhánh nam-setup: 00e8ffe (m2/m3), 0e13561 (Tasks 7–8), f938e3b (m5), 8c50995 (merge); artifacts/answers_50q.json |
 | 2 | Đỗ Ngọc Phi | 2A202602531 | Tích hợp m1 + m4 (evaluator_models); Phase A Tasks 1–4; failure_clusters.md; blueprint Monitoring | Nhánh phi-phase-a, PR #2; src/m1_chunking.py, src/m4_eval.py, src/phase_a_ragas.py |
-| 3 | {{Họ tên}} | {{MSSV}} | {{Phase/file/hàm}} | {{Commit/PR/report}} |
+| 3 | Phạm Cường Quốc | 2A202602469 | Phase B Task 5 `pairwise_judge`, Task 6 `swap_and_average`; Phase C Task 11 `check_output_rail` | Nhánh cuongquoc_2A202602469, commit `48e38d1`; src/phase_b_judge.py, src/phase_c_guard.py; artifacts/judge_results.json (pairwise_results), artifacts/guard_results.json (output_results) |
 | 4 | Nguyễn Trần Bảo Tâm | 2A202602408 | Tasks 9a/9b/10/12; blueprint kiến trúc và latency | Nhánh tam-guard; src/phase_c_guard.py; doc/reports/blueprint.md |
 
 Người tích hợp/chạy batch/nộp link: Nguyễn Hải Nam — merge phi-phase-a, cuongquoc_2A202602469, tam-guard vào nam-setup (8c50995); chạy setup answers và runner A/B; Phase C dùng lại artifact live của Tâm vì nguồn không đổi.
@@ -45,16 +45,23 @@ hoặc pip resolve để khẳng định runtime đã chạy.
 - Còn chờ nhóm: Tasks 7/8 của Nam để review, artifacts A/B và phần Monitoring/CI tương ứng để hợp nhất blueprint. Task 11 của Quốc đã hợp nhất và kiểm chứng offline/live. Nam dùng lại artifact C khi nguồn giữ nguyên để tránh gọi API trùng.
 - Nguồn/AI hỗ trợ: Codex hỗ trợ đọc yêu cầu, triển khai từ scaffold, tích hợp code nhóm, sửa môi trường, chạy tests/engine/API thật, viết smoke runner, tinh chỉnh prompt và tài liệu. Tâm cần tự đọc, giải thích và xác nhận đóng góp trước khi nộp.
 
-Sao chép mẫu cho mỗi thành viên; tiêu đề họ tên không dấu-MSSV.
+### NguyenHaiNam-2A202602476
 
-### {{HoVaTen}}-{{MSSV}}
+- Phần được giao và phần thực tế đã làm: trưởng nhóm/tích hợp. Viết checklist phân công 4 người (`doc/TEAM_CHECKLIST.md`); dựng môi trường full runtime trên Windows (Python 3.11.9, MSVC Build Tools + Windows SDK, NeMo 0.10.0, Qdrant v1.9.7 qua Docker); đưa m2 `HybridSearch` + m3 `CrossEncoderReranker` từ Day 18 và sửa m2 fallback `client.search()` vì lab pin `qdrant-client<1.10` không có `query_points()`; bổ sung m5 `enrich_chunks` (không nhánh nào có, setup bắt buộc); implement Task 7 `cohen_kappa` và Task 8 `bias_report`; merge ba nhánh phi-phase-a, cuongquoc_2A202602469, tam-guard; sửa phần đổi model sang `gpt-6-luna` (generation/judge/m5) và giữ evaluator RAGAS ở `gpt-4o-mini`; sinh 50 answers và chạy batch A/B; điền TEAM, chạy checker, nộp bài.
+- Bằng chứng: nhánh nam-setup — `00e8ffe` (m2/m3), `8c50995` (merge nhóm), `0e13561` (Tasks 7–8), `f938e3b` (m5), `8cc1b3f` (TEAM), `4c1ed9c` (model gpt-6-luna); artifacts/answers_50q.json, ragas_50q.json, judge_results.json.
+- Cách kiểm tra: `python -m pytest tests/ -q` → 86 passed (offline, mock); đối chiếu `cohen_kappa` với `binary_kappa` của checker trên 500 bộ nhãn ngẫu nhiên đều khớp. Smoke live: m2+m3 trên Qdrant thật (top-1 đúng câu nghỉ phép, rerank 0.997); m4 với evaluator gpt-4o-mini cho 4 metric hữu hạn; pairwise và binary judge gpt-6-luna trả JSON hợp lệ. Batch live chạy bằng `scripts/setup_answers.py --live` và `scripts/run_experiments.py --phase a/b --live`; `python scripts/check_lab.py` để xác nhận.
+- Điều đã học: κ đo mức đồng thuận vượt trên may rủi nên quan trọng hơn tỷ lệ trùng nhãn khi phân bố nhãn lệch (6/4); A/B/tie và nhãn 0/1 là hai câu hỏi khác nhau; position bias chỉ phát hiện được khi swap và phải quy winner/scores lượt 2 về A/B gốc; verbosity chỉ là dấu hiệu thống kê, cần đọc nội dung. Về vận hành: provenance model phải tách theo vai trò, và hash nguồn phụ thuộc byte nên line ending (CRLF/LF) có thể làm artifact bị coi là stale.
+- Giới hạn/cách xử lý: (1) VC++ Redistributable 14.38 mất Package Cache làm Build Tools lỗi 1603 → Repair bằng đúng bản 14.38 rồi nâng 14.51. (2) pyarrow 26 đòi NumPy 2 → `pyarrow==17.0.0`; pyarrow 17 kèm msvcp140.dll 14.28 làm torch lỗi WinError 1114 → đổi tên DLL để dùng bản hệ thống. (3) gpt-6-luna chỉ nhận temperature=1 và `max_completion_tokens`: RAGAS 0.1.22 ép temperature=1e-8 làm cả 4 metric NaN → evaluator giữ gpt-4o-mini; m5 với budget 400 token trả rỗng do reasoning tokens → nới budget. (4) Flashrank mặc định là model tiếng Anh → giữ CrossEncoder đa ngôn ngữ. (5) Fixtures checkout CRLF trước khi có `.gitattributes` làm Phase C bị báo stale → checkout lại bản LF, không sửa nội dung.
+- Nguồn/AI hỗ trợ nếu có: Claude Code hỗ trợ đọc đề/rubric, lập checklist, chẩn đoán lỗi cài đặt, viết Tasks 7–8, sửa m2/m4/m5, tích hợp nhánh và soạn tài liệu; một phần đổi model do Codex bắt đầu. Nam kiểm chứng bằng unit tests, đối chiếu với checker, chạy smoke/API thật và đọc lại từng thay đổi trước khi commit.
 
-- Phần được giao và phần thực tế đã làm: {{Nhiệm vụ, file/hàm, mục đích}}.
-- Bằng chứng: {{Commit/PR và artifacts/reports liên quan}}.
-- Cách kiểm tra: {{Unit mock hoặc live experiment, lệnh và kết quả}}.
-- Điều đã học: {{Khái niệm và cách thể hiện trong bài}}.
-- Giới hạn/cách xử lý: {{Vấn đề và kiểm chứng}}.
-- Nguồn/AI hỗ trợ nếu có: {{Công cụ, phạm vi, cách tự kiểm chứng}}.
+### PhamCuongQuoc-2A202602469
+
+- Phần được giao và phần thực tế đã làm: theo checklist được giao m5, Tasks 5/6/11, `bias_report.md` và mục CI gates của blueprint. Thực tế đã làm: Task 5 `pairwise_judge` (prompt chấm theo reference với 3 tiêu chí chính xác — đúng phiên bản và phủ định —, đầy đủ, súc tích; nêu rõ độ dài không phải lý do thắng; cho phép `tie`; `response_format=json_object`; kiểm tra winner ∈ {A, B, tie} và scores trong [0, 1]), Task 6 `swap_and_average` (gọi lượt 2 với B/A cùng reference, quy winner và scores lượt 2 về A/B gốc, đồng thuận thì giữ winner, lệch thì `tie`), Task 11 `check_output_rail` (answer là message cuối, chỉ chạy rail output, quyết định theo `activated_rails[].stop`, giữ nguyên answer sạch, thay bằng response của rail khi bị chặn). m5 và `bias_report.md` do Nam bổ sung, bản nháp CI gates do Tâm viết.
+- Bằng chứng: commit `48e38d1` trên nhánh cuongquoc_2A202602469, được Tâm merge ở `a59a02d` và Nam tích hợp ở `8c50995`; kết quả live: `pairwise_results` 5 cặp × 2 lượt trong artifacts/judge_results.json, `output_results` 4/4 đúng trong artifacts/guard_results.json.
+- Cách kiểm tra: `python -m pytest tests/test_phase_b.py -k "pairwise or swap" -q` (3 tests) và `python -m pytest tests/test_phase_c.py -k output -q` (2 tests) đều pass với SDK/NeMo mock; live Phase C (Tâm chạy) giữ nguyên hai output sạch 201/202 và chặn 203/204. Khi đổi judge sang gpt-6-luna, Nam bỏ `temperature=0` vì model chỉ nhận giá trị mặc định; logic Tasks 5/6 giữ nguyên.
+- Điều đã học: winner A/B/tie là phép so sánh tương đối giữa hai candidate, khác nhãn tốt/xấu 0/1; position bias chỉ lộ ra khi hoán vị thứ tự, nên lượt 2 phải quy về không gian A/B gốc trước khi so sánh; output rail kiểm tra an toàn nội dung (PII, credential) chứ không thay thế kiểm tra faithfulness theo contexts.
+- Giới hạn/cách xử lý: m5, `bias_report.md` và CI gates chưa được Quốc nộp trước giờ tích hợp nên Nam/Tâm bổ sung để kịp chạy setup và nộp; phần này không tính là đóng góp của Quốc. Judge dùng một model và mẫu nhỏ (5 cặp), nên kết quả pairwise chỉ mang tính tham khảo.
+- Nguồn/AI hỗ trợ nếu có: phần mô tả này do Nam soạn từ diff commit `48e38d1` và kết quả tests/live; Quốc cần đọc lại, tự khai báo công cụ AI đã dùng (nếu có) và xác nhận trước khi nộp.
 
 ### DoNgocPhi-2A202602531
 
