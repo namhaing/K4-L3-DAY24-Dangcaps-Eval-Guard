@@ -1,15 +1,23 @@
 # Blueprint CI/CD cho RAG và guardrails
 
-Nhóm: Dangcaps (theo tên repo). Cập nhật: 2026-10-12, Asia/Ho_Chi_Minh.
+Nhóm: Dangcaps. Cập nhật: 2026-10-13, Asia/Ho_Chi_Minh.
 Kiến trúc, latency và tổng hợp: Nguyễn Trần Bảo Tâm — 2A202602408.
-Monitoring: Đỗ Ngọc Phi — 2A202602531. CI gates: Quốc — MSSV 2A202602469
-theo tên nhánh; hai thành viên review và bổ sung phần A/B sau khi có artifacts.
+Monitoring: Đỗ Ngọc Phi — 2A202602531. CI gates: Phạm Cường Quốc — 2A202602469.
+Số liệu A/B, cập nhật CI/monitoring theo kết quả thật: Nguyễn Hải Nam — 2A202602476.
 
 Bằng chứng C chính thức: `artifacts/guard_results.json`, run_kind=live,
 format_version=2, created_at=2026-10-12T12:37:26.122253+00:00
 (2026-10-12 19:37:26 UTC+07). Model guard trong metadata: `gpt-4o-mini`.
 Roles generation/evaluator/judge của C là các list rỗng vì C không chạy RAG,
-RAGAS hoặc judge. Model IDs và số liệu A/B chờ artifacts của các phase đó.
+RAGAS hoặc judge.
+
+Bằng chứng A/B: `artifacts/ragas_50q.json` (created_at 2026-10-12T17:00:48.875961+00:00)
+và `artifacts/judge_results.json` (created_at 2026-10-12T17:02:08.608036+00:00).
+Models theo vai trò: generation = gpt-6-luna (50/50 answers mode llm, nguồn
+`answers_50q.json`); evaluator = gpt-4o-mini, text-embedding-3-small (từ m4
+`metadata.evaluator_models`); judge = gpt-6-luna (pairwise và `judge_binary`);
+guard = gpt-4o-mini. Evaluator không dùng gpt-6-luna vì RAGAS 0.1.22 ép
+temperature=1e-8 mà gpt-6-luna chỉ nhận giá trị mặc định (thử thì mọi metric NaN).
 Đây là đề xuất kiến trúc/CI/monitoring; workflow production chưa triển khai.
 
 ## Kiến trúc và failure action
@@ -85,12 +93,19 @@ hai warm-up, lưu raw samples/timestamp/config/model và đường đi short-cir
 ## CI gates đề xuất — Quốc review/tích hợp
 
 PR chạy `python -m pytest tests/ -q`; khi có đủ artifacts chạy
-`python scripts/check_lab.py`. Hiện toàn repo có 83 passed, 3 failures ở
-Tasks 7/8 của Nam còn TODO; checker còn 10 failed checks ngoài phần C.
-Cần hoàn tất các phần đó trước khi có thể đặt gate toàn repo xanh.
+`python scripts/check_lab.py`. Hiện toàn repo 86 passed (offline, mock) và
+checker đọc đủ bốn JSON live; hai lệnh này là gate tối thiểu, đều không gọi API.
 
 Đề xuất job đọc JSON đã validate, exit code khác 0 nếu faithfulness <0.75,
 avg_score <0.65, attacks <18/20, clean không đạt 8/8 hoặc output sai.
+Đối chiếu kết quả thật: faithfulness toàn bộ 0.7607 và avg_score 0.7282 đạt
+ngưỡng; attacks 20/20, clean 8/8, output 4/4 đạt. Theo distribution, multi_hop
+faithfulness chỉ 0.5492 nên gate tổng có thể che nhóm yếu; đề xuất thêm gate
+per-distribution (avg_score mỗi nhóm ≥0.60, hiện multi_hop 0.6531) và gate κ ≥0.6
+khi đổi model/prompt judge (hiện κ = 0.80). Lệnh job đề xuất:
+`python scripts/quality_gate.py --ragas artifacts/ragas_50q.json --guard
+artifacts/guard_results.json --judge artifacts/judge_results.json`, trả
+`sys.exit(1)` khi một ngưỡng không đạt; script này chưa được viết.
 Ngưỡng lab bắt buộc vẫn 15/20. Full guard P95 <500ms chỉ kiểm tra sau phép đo
 full guard riêng. Input P95 hiện vượt target, cần cảnh báo/điều tra; không
 gán nó thành full-guard P95. Script quality gate và workflow này chưa triển khai,
@@ -105,9 +120,17 @@ batch đã có bằng chứng.
 
 Theo dõi attacks pass rate (hiện 20/20), clean FPR (0/8), output errors (0/4),
 latency từng tầng và API errors. Cảnh báo khi clean có false positive, attacks
-dưới 18/20 hoặc input P95 vượt 500ms. RAGAS theo distribution và Cohen’s κ
-chờ JSON A/B; chưa có số thật để điền. Tâm xử lý guard/latency, Phi xử lý RAGAS,
-Quốc xử lý judge/output, Nam điều phối tích hợp và các batch A/B.
+dưới 18/20 hoặc input P95 vượt 500ms. RAGAS theo distribution: cảnh báo khi
+avg_score một nhóm giảm quá 0.05 so với baseline hoặc tỷ lệ answer "không tìm
+thấy" tăng (baseline 9/50), vì đó là dấu hiệu retrieval thiếu. Judge: đo lại κ
+trên bộ nhãn người khi đổi model/prompt, cảnh báo khi κ <0.6. Tâm xử lý
+guard/latency, Phi xử lý RAGAS, Quốc xử lý judge/output, Nam điều phối tích hợp
+và các batch A/B.
+
+RAGAS mean/worst distribution: avg_score toàn bộ 0.7282 (faithfulness 0.7607);
+nhóm yếu nhất multi_hop 0.6531 (factual 0.8016, adversarial 0.7318).
+Cohen’s κ: 0.80 (p_o 0.90, p_e 0.50, 9/10 nhãn khớp người).
+Attacks passed: 20/20; clean false_positive_rate: 0.0.
 
 Các cải tiến cần kiểm chứng:
 
@@ -119,11 +142,17 @@ Các cải tiến cần kiểm chứng:
 - Đo RAG/output/full request riêng trước khi quyết định budget production.
 - Theo dõi drift bằng mẫu đã redact, giới hạn truy cập/thời gian lưu và gắn
   model/prompt version. Bộ 50/20/8/4 chưa đại diện traffic production.
+- Tăng RERANK_TOP_K từ 3 lên 5 hoặc tách sub-query cho câu multi-hop; đo lại
+  context_recall multi_hop (0.7792) và số answer "không tìm thấy" (9/50).
+- Gắn version/effective_date vào metadata chunk và ưu tiên bản hiện hành khi
+  rerank; đo lại câu 39 và 44 (bẫy phiên bản mật khẩu).
+- Bổ sung kiểm tra faithfulness bằng judge có reference hoặc người duyệt cho
+  câu có phép tính: câu 7, 24, 27, 38 bị chấm faithfulness 0 dù có căn cứ.
 
 ## Bàn giao
 
 Tasks 9a/9b/10/12 của Tâm và Task 11 của Quốc đạt đủ 12 tests offline.
 Presidio thật đạt 12/12; smoke NeMo hiện hành đạt 13/13 gồm một input NeMo.
-Chi tiết môi trường, hai lượt C và các phần chung còn thiếu nằm trong
-`tam_guard_validation.md`. Blueprint đã có số guard/latency thật; metadata,
-metric RAGAS và κ vẫn chờ A/B để nhóm hoàn thiện báo cáo chung.
+Chi tiết môi trường và hai lượt C nằm trong `tam_guard_validation.md`.
+Blueprint đã có số guard/latency, RAGAS và κ thật từ bốn artifacts live;
+phân tích chi tiết ở `failure_clusters.md` và `bias_report.md`.

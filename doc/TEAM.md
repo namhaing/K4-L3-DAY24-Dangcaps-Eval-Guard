@@ -28,7 +28,7 @@ Người tích hợp/chạy batch/nộp link: Nguyễn Hải Nam — merge phi-p
 
 OS/Python/compiler (máy Nam, máy chạy batch A/B): Windows 11 Home 10.0.26200, Python 3.11.9, Visual Studio Build Tools 2022 17.14 (MSVC 14.44.35207, Windows SDK 10.0.26100). Phải Repair VC++ Redistributable 14.38 (mất Package Cache) rồi nâng lên 14.51 mới cài được Build Tools.
 Virtualenv/dependencies/imports: `py -3.11 -m venv .venv`; `pip install -r requirements/requirements.txt -c requirements/constraints-core.txt` (annoy 1.17.3 build bằng MSVC thành công). pip kéo pyarrow 26 cần NumPy 2 → cài `pyarrow==17.0.0`; pyarrow 17 kèm msvcp140.dll 14.28 làm torch 2.14.1 lỗi WinError 1114 → đổi tên DLL đó để dùng bản hệ thống 14.51. Sau đó `pip check`: No broken requirements; import ragas 0.1.22, nemoguardrails 0.10.0, presidio_analyzer, spacy 3.8.16, torch 2.14.1+cpu, numpy 1.26.4 OK; `pytest tests/ -q`: 86 passed.
-Models/Qdrant/50 answers đã chuẩn bị: {{Bằng chứng và giới hạn/fallback}}.
+Models/Qdrant/50 answers đã chuẩn bị: BGE-M3 và bge-reranker-v2-m3 dùng cache HuggingFace từ Day 18 (chạy với HF_HUB_OFFLINE=1); spaCy en_core_web_lg 3.8.0; Qdrant `qdrant/qdrant:v1.9.7` qua `infra/docker-compose.yml` (GET :6333 trả version 1.9.7; m2 kết nối server thật, không rơi về `:memory:`). `python scripts/setup_answers.py --live`: 108 child chunks (hai PDF scan BCTC.pdf và Nghị định 13 không trích được text), m5 enrich 108/108 (102 cache hit, 6 API calls, 0 lỗi), index 97.2s, 50 queries 579s; `artifacts/answers_50q.json` qua `validate_answers`: 50 id, 20/20/10, cả 50 `generation_mode=llm`, `generation_model=gpt-6-luna`, không có extractive fallback, không answer nào trùng ground_truth.
 Nếu cài full NeMo chưa thành công, ghi lỗi thực tế; không dùng unit test pass
 hoặc pip resolve để khẳng định runtime đã chạy.
 
@@ -48,8 +48,8 @@ hoặc pip resolve để khẳng định runtime đã chạy.
 ### NguyenHaiNam-2A202602476
 
 - Phần được giao và phần thực tế đã làm: trưởng nhóm/tích hợp. Viết checklist phân công 4 người (`doc/TEAM_CHECKLIST.md`); dựng môi trường full runtime trên Windows (Python 3.11.9, MSVC Build Tools + Windows SDK, NeMo 0.10.0, Qdrant v1.9.7 qua Docker); đưa m2 `HybridSearch` + m3 `CrossEncoderReranker` từ Day 18 và sửa m2 fallback `client.search()` vì lab pin `qdrant-client<1.10` không có `query_points()`; bổ sung m5 `enrich_chunks` (không nhánh nào có, setup bắt buộc); implement Task 7 `cohen_kappa` và Task 8 `bias_report`; merge ba nhánh phi-phase-a, cuongquoc_2A202602469, tam-guard; sửa phần đổi model sang `gpt-6-luna` (generation/judge/m5) và giữ evaluator RAGAS ở `gpt-4o-mini`; sinh 50 answers và chạy batch A/B; điền TEAM, chạy checker, nộp bài.
-- Bằng chứng: nhánh nam-setup — `00e8ffe` (m2/m3), `8c50995` (merge nhóm), `0e13561` (Tasks 7–8), `f938e3b` (m5), `8cc1b3f` (TEAM), `4c1ed9c` (model gpt-6-luna); artifacts/answers_50q.json, ragas_50q.json, judge_results.json.
-- Cách kiểm tra: `python -m pytest tests/ -q` → 86 passed (offline, mock); đối chiếu `cohen_kappa` với `binary_kappa` của checker trên 500 bộ nhãn ngẫu nhiên đều khớp. Smoke live: m2+m3 trên Qdrant thật (top-1 đúng câu nghỉ phép, rerank 0.997); m4 với evaluator gpt-4o-mini cho 4 metric hữu hạn; pairwise và binary judge gpt-6-luna trả JSON hợp lệ. Batch live chạy bằng `scripts/setup_answers.py --live` và `scripts/run_experiments.py --phase a/b --live`; `python scripts/check_lab.py` để xác nhận.
+- Bằng chứng: nhánh nam-setup (đã fast-forward vào main) — `00e8ffe` (m2/m3), `8c50995` (merge nhóm), `0e13561` (Tasks 7–8), `f938e3b` (m5), `8cc1b3f` (TEAM), `4c1ed9c` (model gpt-6-luna), `9bc0a32` (answers_50q.json), `3dd9dda` (ragas_50q.json), `0dcd658` (judge_results.json), `5113644` (failure_clusters.md), `72c085a` (bias_report.md).
+- Cách kiểm tra: `python -m pytest tests/ -q` → 86 passed (offline, mock); đối chiếu `cohen_kappa` với `binary_kappa` của checker trên 500 bộ nhãn ngẫu nhiên đều khớp. Smoke live: m2+m3 trên Qdrant thật (top-1 đúng câu nghỉ phép, rerank 0.997); m4 với evaluator gpt-4o-mini cho 4 metric hữu hạn; pairwise và binary judge gpt-6-luna trả JSON hợp lệ. Batch live: `scripts/setup_answers.py --live` (50 answers), `scripts/run_experiments.py --phase a --live` (avg_score factual 0.8016, multi_hop 0.6531, adversarial 0.7318) và `--phase b --live` (5 cặp nhất quán khi swap, κ = 0.80 với 9/10 nhãn khớp người). Phase C dùng lại artifact live của Tâm sau khi checkout lại fixtures dạng LF để hash khớp. `python scripts/check_lab.py --with-tests` để xác nhận toàn bộ.
 - Điều đã học: κ đo mức đồng thuận vượt trên may rủi nên quan trọng hơn tỷ lệ trùng nhãn khi phân bố nhãn lệch (6/4); A/B/tie và nhãn 0/1 là hai câu hỏi khác nhau; position bias chỉ phát hiện được khi swap và phải quy winner/scores lượt 2 về A/B gốc; verbosity chỉ là dấu hiệu thống kê, cần đọc nội dung. Về vận hành: provenance model phải tách theo vai trò, và hash nguồn phụ thuộc byte nên line ending (CRLF/LF) có thể làm artifact bị coi là stale.
 - Giới hạn/cách xử lý: (1) VC++ Redistributable 14.38 mất Package Cache làm Build Tools lỗi 1603 → Repair bằng đúng bản 14.38 rồi nâng 14.51. (2) pyarrow 26 đòi NumPy 2 → `pyarrow==17.0.0`; pyarrow 17 kèm msvcp140.dll 14.28 làm torch lỗi WinError 1114 → đổi tên DLL để dùng bản hệ thống. (3) gpt-6-luna chỉ nhận temperature=1 và `max_completion_tokens`: RAGAS 0.1.22 ép temperature=1e-8 làm cả 4 metric NaN → evaluator giữ gpt-4o-mini; m5 với budget 400 token trả rỗng do reasoning tokens → nới budget. (4) Flashrank mặc định là model tiếng Anh → giữ CrossEncoder đa ngôn ngữ. (5) Fixtures checkout CRLF trước khi có `.gitattributes` làm Phase C bị báo stale → checkout lại bản LF, không sửa nội dung.
 - Nguồn/AI hỗ trợ nếu có: Claude Code hỗ trợ đọc đề/rubric, lập checklist, chẩn đoán lỗi cài đặt, viết Tasks 7–8, sửa m2/m4/m5, tích hợp nhánh và soạn tài liệu; một phần đổi model do Codex bắt đầu. Nam kiểm chứng bằng unit tests, đối chiếu với checker, chạy smoke/API thật và đọc lại từng thay đổi trước khi commit.
@@ -75,5 +75,17 @@ hoặc pip resolve để khẳng định runtime đã chạy.
 
 ## Cập nhật sau khi nộp
 
-{{Ghi phiên bản nộp; nếu sửa sau deadline, ghi commit/thời điểm/lý do và thông báo
-coach cho phép áp dụng bản cập nhật. Nếu không có cập nhật, ghi rõ không có.}}
+Phiên bản trước deadline (23:59 ngày 2026-10-12, UTC+07): `9bc0a32`, commit lúc
+23:59:27 và push lên main lúc 23:59:31. Bản này có đủ source m1–m5 và ba module
+phase (86 tests pass, không còn TODO), `artifacts/answers_50q.json` và
+`artifacts/guard_results.json` live; chưa có `ragas_50q.json`, `judge_results.json`
+và hai báo cáo A/B. Trước đó `d18168c` đã push lúc 23:53:34.
+
+Cập nhật sau deadline, ngày 2026-10-13: `3dd9dda` (00:01:17, ragas_50q.json live),
+`0dcd658` (00:02:18, judge_results.json live), `5113644` (00:04:16,
+failure_clusters.md), `72c085a` (00:05:00, bias_report.md), sau đó các commit hoàn
+thiện blueprint.md và TEAM.md. Lý do: cài full runtime trên Windows mất nhiều thời
+gian (sửa VC++ Redistributable để cài Build Tools, mạng tải gói khoảng 30–100 kB/s,
+Docker Engine treo phải khởi động lại) nên batch A/B chạy sát giờ. Chưa có thông báo
+gia hạn; việc dùng bản cập nhật để chấm theo quyết định của key coach. Không sửa lại
+các commit trước deadline.
