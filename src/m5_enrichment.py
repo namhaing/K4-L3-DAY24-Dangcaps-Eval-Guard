@@ -33,7 +33,7 @@ class EnrichedChunk:
 
 # ─── OpenAI helper ───────────────────────────────────────
 
-LLM_MODEL = "gpt-4o-mini"
+LLM_MODEL = "gpt-6-luna"
 CACHE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                           ".cache", "enrichment.json")
 
@@ -45,8 +45,9 @@ def _chat(system: str, user: str, max_tokens: int, json_mode: bool = False) -> s
     resp = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        max_tokens=max_tokens,
-        temperature=0,
+        # gpt-6-* tính cả reasoning tokens vào max_completion_tokens; 400 làm rỗng output
+        # (đo thực tế ~511 tokens/chunk) nên nới budget, chỉ trả phí cho token thực dùng.
+        max_completion_tokens=max(max_tokens * 4, 2000),
         **({"response_format": {"type": "json_object"}} if json_mode else {}),
     )
     return resp.choices[0].message.content.strip()

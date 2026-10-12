@@ -14,6 +14,7 @@ from config import TEST_SET_PATH
 
 # Evaluator models cho RAGAS — tách khỏi GENERATION_MODEL và JUDGE_MODEL.
 # LLM chấm faithfulness/context_precision/context_recall; embedding dùng cho answer_relevancy.
+# RAGAS 0.1.22 luôn ép temperature=1e-8; gpt-6-* chỉ nhận temperature=1 → evaluator giữ gpt-4o-mini.
 EVALUATOR_LLM_MODEL = "gpt-4o-mini"
 EVALUATOR_EMBEDDING_MODEL = "text-embedding-3-small"
 

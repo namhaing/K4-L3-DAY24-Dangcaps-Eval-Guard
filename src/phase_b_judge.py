@@ -62,7 +62,6 @@ Trả lời JSON (chỉ JSON):
     client = OpenAI()
     resp = client.chat.completions.create(
         model=JUDGE_MODEL,
-        temperature=0,
         messages=[
             {"role": "system", "content": "Bạn là expert đánh giá RAG. Chỉ trả lời JSON."},
             {"role": "user", "content": prompt},
