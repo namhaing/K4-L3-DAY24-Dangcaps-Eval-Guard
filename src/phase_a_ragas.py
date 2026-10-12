@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 from dataclasses import asdict, dataclass
 
@@ -186,24 +187,51 @@ def bottom_10(results: list[RagasResult]) -> list[dict]:
           "question": ..., "avg_score": ..., "worst_metric": ...,
           "diagnosis": ..., "suggested_fix": ...}, ...]
     """
-    # TODO: Implement
-    # sorted_asc = sorted(results, key=lambda r: r.avg_score)
-    # bottom = sorted_asc[:10]
-    # output = []
-    # for i, r in enumerate(bottom):
-    #     diag, fix = DIAGNOSTIC_TREE[r.worst_metric]
-    #     output.append({
-    #         "rank": i + 1,
-    #         "question_id": r.question_id,
-    #         "distribution": r.distribution,
-    #         "question": r.question,
-    #         "avg_score": round(r.avg_score, 4),
-    #         "worst_metric": r.worst_metric,
-    #         "diagnosis": diag,
-    #         "suggested_fix": fix,
-    #     })
-    # return output
-    return []
+    output = []
+    for rank, r in enumerate(sorted(results, key=lambda r: r.avg_score)[:10], 1):
+        diagnosis, suggested_fix = _diagnose(r)
+        output.append({
+            "rank": rank,
+            "question_id": r.question_id,
+            "distribution": r.distribution,
+            "question": r.question,
+            "avg_score": round(r.avg_score, 4),
+            "worst_metric": r.worst_metric,
+            "diagnosis": diagnosis,
+            "suggested_fix": suggested_fix,
+        })
+    return output
+
+
+VERSION_PATTERN = re.compile(r"\bv\d+(\.\d+)?\b|hiện hành|hết hiệu lực|thay thế|phiên bản", re.IGNORECASE)
+NEGATION_PATTERN = re.compile(r"^\s*không\b|không được|tuyệt đối không|\bcấm\b", re.IGNORECASE)
+ANSWER_NEGATION_PATTERN = re.compile(r"\bkhông\b|\bchưa\b|\bcấm\b", re.IGNORECASE)
+NOT_FOUND_PATTERN = re.compile(r"không tìm thấy", re.IGNORECASE)
+
+
+def _diagnose(r: RagasResult) -> tuple[str, str]:
+    """Diagnosis cụ thể cho một câu, suy ra từ điểm, answer và reference của chính câu đó."""
+    diagnosis, fix = DIAGNOSTIC_TREE[r.worst_metric]
+    worst_value = getattr(r, r.worst_metric)
+    signals = [f"{diagnosis} ({r.worst_metric}={worst_value:.2f})"]
+    fixes = [fix]
+    if NOT_FOUND_PATTERN.search(r.answer):
+        signals.append("answer trả 'không tìm thấy' — context lấy về không chứa thông tin cần")
+        fixes.append("kiểm tra retrieval cho từ khóa của câu hỏi (BM25/dense, tăng top_k) trước khi sửa prompt")
+    if VERSION_PATTERN.search(r.ground_truth):
+        signals.append("reference phân biệt phiên bản chính sách — rủi ro dùng bản cũ đã bị thay thế")
+        fixes.append("gắn metadata phiên bản/ngày hiệu lực khi chunking, ưu tiên bản hiện hành khi rerank "
+                     "và yêu cầu answer nêu phiên bản áp dụng (không xóa tài liệu cũ)")
+    if NEGATION_PATTERN.search(r.ground_truth):
+        if ANSWER_NEGATION_PATTERN.search(r.answer):
+            signals.append("reference có phủ định/điều kiện cấm — cần đối chiếu answer có giữ đúng phủ định")
+        else:
+            signals.append("reference là phủ định nhưng answer không chứa phủ định nào")
+        fixes.append("prompt yêu cầu trả lời rõ Có/Không trước, rồi trích điều kiện từ context")
+    if r.distribution == "multi_hop" and r.worst_metric in ("context_recall", "context_precision"):
+        signals.append("câu multi-hop cần kết hợp nhiều tài liệu; top-k sau rerank có thể thiếu một nguồn")
+        fixes.append("tăng RERANK_TOP_K hoặc trả parent chunk cho câu cần nhiều nguồn")
+    return "; ".join(signals), "; ".join(fixes)
 
 
 def cluster_analysis(results: list[RagasResult]) -> dict:
