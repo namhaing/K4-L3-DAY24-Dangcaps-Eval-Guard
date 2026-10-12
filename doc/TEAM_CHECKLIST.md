@@ -78,7 +78,9 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-- [ ] `python -c "import ragas, nemoguardrails, presidio_analyzer, spacy; print('imports OK')"`
+- [ ] ⚠️ Sửa xung đột pyarrow (gặp thật trên máy Nam): constraints khóa `numpy==1.26.4` nhưng pip kéo `pyarrow 26` (cần NumPy 2) → `pip install "pyarrow==17.0.0"`. pyarrow 17 kèm `msvcp140.dll` cũ (14.28) làm torch 2.14 lỗi `WinError 1114 c10.dll` khi import sau pyarrow → đổi tên `.venv\Lib\site-packages\pyarrow\msvcp140.dll` thành `msvcp140.dll.bak` (dùng bản hệ thống 14.51, tương thích ngược).
+- [ ] Nếu build `annoy` báo `WinError 267` khi chạy pip ở terminal nền → chạy lại pip ở terminal thường, tại gốc repo.
+- [ ] `python -c "import pyarrow, ragas, nemoguardrails, presidio_analyzer, spacy, torch; print('imports OK')"`
 - [ ] `python -m spacy download en_core_web_lg`
 - [ ] `docker compose -f infra/docker-compose.yml up -d` (Qdrant `v1.9.7`, port 6333; Docker 28.5.1 đã có sẵn trên máy).
 - [ ] Tạo `.env` từ `.env.example`, điền `OPENAI_API_KEY` (không commit).
